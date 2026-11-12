@@ -1,13 +1,13 @@
 {
   "name": "raydump",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Decrypt a Raycast .rayconfig export with its password and extract your data as readable Markdown and JSON",
   "keywords": ["raycast", "rayconfig", "export", "backup", "decrypt", "data-portability"],
-  "homepage": "https://github.com/bixvongoeler/raycast-export-extractor#readme",
-  "bugs": "https://github.com/bixvongoeler/raycast-export-extractor/issues",
+  "homepage": "https://github.com/bixvongoeler/raydump#readme",
+  "bugs": "https://github.com/bixvongoeler/raydump/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bixvongoeler/raycast-export-extractor.git"
+    "url": "git+https://github.com/bixvongoeler/raydump.git"
   },
   "license": "MIT",
   "author": "Bix von Goeler",
@@ -20,6 +20,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "node --test"
   }
 }

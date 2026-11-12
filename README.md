@@ -1,6 +1,6 @@
 # raydump
 
-Turn a Raycast export into files you can read.
+**Raycast Export Extractor.** Turn a Raycast export into files you can read.
 
 Raycast's **Export Settings & Data** command saves everything into one `.rayconfig` file that only Raycast can open. `raydump` decrypts that file with the password you chose and writes your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON.
 
@@ -98,7 +98,7 @@ Exports made without a password need none.
 | Raycast 2.x (earlier format) | yes | yes | yes |
 | Raycast 1.x | yes | yes | no |
 
-The current Raycast 2.x format is verified against real exports. The earlier 2.x format and the 1.x format are implemented from how Raycast imports them and are tested with generated files only. If one of yours does not work, please [open an issue](https://github.com/bixvongoeler/raycast-export-extractor/issues).
+The current Raycast 2.x format is verified against real exports. The earlier 2.x format and the 1.x format are implemented from how Raycast imports them and are tested with generated files only. If one of yours does not work, please [open an issue](https://github.com/bixvongoeler/raydump/issues).
 
 ## Privacy
 
@@ -127,8 +127,8 @@ The older formats are described at the top of [`src/container.js`](src/container
 ## Development
 
 ```sh
-git clone https://github.com/bixvongoeler/raycast-export-extractor.git
-cd raycast-export-extractor
+git clone https://github.com/bixvongoeler/raydump.git
+cd raydump
 npm test
 ```
 
