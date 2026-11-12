@@ -7,7 +7,7 @@ import { OutputDir } from './output.js';
 import { safeName } from './markdown.js';
 import { SECTIONS } from './writers.js';
 
-const NAME = 'raycast-export-extractor';
+const NAME = 'raydump';
 const SECTION_NAMES = ['json', ...SECTIONS.map(s => s.name)];
 const PASSWORD_ENV = 'RAYCAST_EXPORT_PASSWORD';
 const PASSWORD_ATTEMPTS = 3;

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BIN = fileURLToPath(new URL('../bin/raycast-export-extractor.js', import.meta.url));
+const BIN = fileURLToPath(new URL('../bin/raydump.js', import.meta.url));
 
 const toJsonBytes = data => Buffer.from(typeof data === 'string' ? data : JSON.stringify(data));
 

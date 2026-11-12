@@ -240,7 +240,7 @@ test('reports files that are not exports', t => {
 test('--help, --version and missing arguments', () => {
   const help = runCli(['--help']);
   assert.equal(help.status, 0);
-  assert.match(help.stdout, /^Usage: raycast-export-extractor <export\.rayconfig> \[options\]/);
+  assert.match(help.stdout, /^Usage: raydump <export\.rayconfig> \[options\]/);
   assert.match(help.stdout, /Sections: json, notes, chats, transcriptions, snippets, quicklinks, clipboard/);
 
   const version = runCli(['--version']);
