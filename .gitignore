@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.tgz
+
+# Never commit an export or anything extracted from one.
+*.rayconfig
+/Raycast*/
+/*-extracted/
+/extracted/
+/out/
