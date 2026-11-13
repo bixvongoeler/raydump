@@ -6,9 +6,9 @@
 <h1 align="center">
   raydump
 </h1>
-<h3 align="center">
-  Built by <a href="https://github.com/bixvongoeler">Bix von Goeler</a>
-</h3>
+<h4 align="center">
+  Built by <a href="https://github.com/bixvongoeler">bixvongoeler</a>
+</h4>
 <p align="center">
   Decrypt your Raycast export and get your notes, AI chats, snippets and more as Markdown and JSON.
 </p>
