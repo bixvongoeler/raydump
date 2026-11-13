@@ -16,15 +16,19 @@
   <a aria-label="MIT license" href="LICENSE"><img alt="" src="https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge"></a>
 </p>
 
-Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
+## About
 
-To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, save the `Raycast-X DATE.rayconfig` file, and then run `npx raydump "/path/to/your/Raycast-X DATE.rayconfig"` which will extract your data to a new folder containing your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON files.
+Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
 
 - `raydump` requires the export password you chose in raycast during export to decrypt the `.rayconfig` file.
 - It runs entirely on your computer and makes no network requests.
 - It has no dependencies beyond Node.js.
 
-## Quick start
+## Quick Start
+
+To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, save the `Raycast-X DATE.rayconfig` file, and then run `npx raydump "/path/to/your/Raycast-X DATE.rayconfig"` which will extract your data to a new folder containing your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON files.
+
+## Setup and Usage
 
 <p align="center"><img src=".github/assets/step-1-search.png" alt="Step 1: Search" width="70%"></p>
 
@@ -42,7 +46,7 @@ To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, sav
     npx raydump "Raycast-X [DATE].rayconfig"
     ```
 
-## Install
+## Homebrew Install
 
 If you want to run regular exports, or don't already have node installed, get it with Homebrew:
 
@@ -57,14 +61,14 @@ Or with npm:
 npm install -g raydump
 ```
 
-## Resulting Files
+## Files Produced
 
 <img src=".github/assets/output-tree.png" alt="Output tree" width="70%">
 
 - The `json/` folder contains the complete export: settings, extensions, window layouts, themes, usage history, etc.
 - The `markdown` files are generated from the `json` files to create human/agent readable views of key data categories.
 
-## Detailed Usage
+## Detailed CLI Usage
 
 ```
 raydump <export.rayconfig> [options]
