@@ -61,6 +61,8 @@ export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA
 
 const text = (value, marks) => ({ type: 'text', text: value, ...(marks ? { marks: marks.map(type => ({ type })) } : {}) });
 const paragraph = (...content) => ({ type: 'paragraph', content });
+const hotkey = (modifiers, code) => ({ kind: { type: 'SingleStep', shortcut: { modifiers: modifiers.map(modifier => ({ modifier })), key: { type: 'LayoutIndependent', code } } }, locality: 'Global' });
+const STORE_EXTENSION = '11111111-2222-3333-4444-555555555555';
 
 /** A made-up export covering every section the tool writes. */
 export const sampleExport = {
@@ -83,7 +85,9 @@ export const sampleExport = {
     transcriptions: [
       { id: 'T1', status: 'success', value: 'Hello there.', rawValue: 'hello there', wordCount: 2, duration: 3, applicationName: 'Notes', startedAt: '2026-01-06T08:00:00.000Z' },
     ],
-    folders: [],
+    // One chat folder with a memory of its own. Its text has a heading, and a fenced line that only looks like one.
+    folders: [{ id: 'F1', name: 'Garden', memory: '# Project Memory\n\n- Tomatoes need sun.\n\n```\n# not a heading\n```', memoryLastUpdatedAt: '2026-01-09T00:00:00.000Z', memoryEnabled: false }],
+    commands: [{ id: 'CMD1', name: 'Fix Writing' }],
     schemaVersion: 1,
   },
   clipboardHistory: {
@@ -118,7 +122,34 @@ export const sampleExport = {
     quicklinks: [{ id: 'QL1', name: 'Search | Docs', link: 'https://example.com/?q={query}', openWith: 'Browser', openCount: 4, createdAt: '2026-01-01T00:00:00.000Z' }],
     schemaVersion: 1,
   },
-  settings: { general: { appearance: 'dark' }, schemaVersion: 1 },
+  nodeExtensions: { extensions: [{ uuid: STORE_EXTENSION, name: 'tooth-pick', author: 'sam' }], schemaVersion: 1 },
+  settings: {
+    general: { openAtLogin: true, appearance: 'dark', uiZoom: 1.1, additionalCertificateAuthorities: [], globalHotkey: hotkey(['Meta'], 49) },
+    commands: [
+      { id: 'c:r:clipboard-history::-::history', extensionId: 'e:r:clipboard-history', enabled: true, macosHotkey: hotkey(['Meta', 'Shift', 'Alt', 'Ctrl'], 9), favoriteOrder: 0 },
+      { id: 'c:r:quicklinks::*::quicklink::=::QL1', extensionId: 'e:r:quicklinks', enabled: true, alias: 'docs', fallbackOrder: 0 },
+      { id: `c:n:${STORE_EXTENSION}::-::connect-device`, extensionId: `e:n:${STORE_EXTENSION}`, enabled: false, meta: { ranAt: 1767312000000, delta: 64 } },
+      { id: 'c:r:apple-shortcuts::*::shortcut::=::SHORTCUT-1', extensionId: 'e:r:apple-shortcuts', enabled: false },
+      { id: 'c:r:apple-shortcuts::*::shortcut::=::SHORTCUT-2', extensionId: 'e:r:apple-shortcuts', enabled: false },
+      { id: 'c:r:ai::*::aiCommand::=::CMD1', extensionId: 'e:r:ai', enabled: true, macosHotkey: { kind: { type: 'DoubleTap', shortcut: { modifier: { modifier: 'Meta', directionality: 'right' } } }, locality: 'Global' } },
+      { id: 'c:r:window-management::-::leftHalf', extensionId: 'e:r:window-management', enabled: true, macosHotkey: { kind: { type: 'SingleKey', shortcut: { type: 'Modifiers', modifiers: [{ modifier: 'Shift' }, { modifier: 'Meta' }] } }, locality: 'Global' } },
+    ],
+    internalExtensions: [
+      {
+        id: 'e:r:ai', enabled: true,
+        meta: {
+          aiMemory: '**Work**\n\nLikes short answers.', aiMemoryEnabled: true, aiMemoryLastUpdated: '2026-01-10T00:00:00.000Z',
+          aiByokApiKeys: [{ provider: 'example', key: 'sk-secret-value' }], aiProfile: 'Line one\nLine two',
+          skillDirectories: ['~/skills', '*.tmp'], autoQuitRules: [{ name: 'Mail', intervalMinutes: 3 }], widgets: { end: ['clock'] }, weatherLocation: '', defaultEditor: null,
+        },
+      },
+      { id: 'e:r:windows-taskbar', enabled: false },
+    ],
+    nodeExtensions: [{ id: `e:n:${STORE_EXTENSION}`, enabled: true }],
+    themes: [{ id: 'TH1', name: 'Night', appearance: 'dark', background: '#000000' }],
+    installationDate: '2025-12-01T00:00:00.000Z',
+    schemaVersion: 1,
+  },
   snippets: {
     snippets: [{ id: 'SN1', title: 'Signature', keyword: '/sig', text: 'Best,\nSam', copyCount: 12, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }],
     schemaVersion: 1,
@@ -175,6 +206,29 @@ export const classicExport = {
     ],
   },
   builtin_package_clipboardHistory: { provider_schemaVersion: 1, clipboardHistoryEnableLinkPreview: true },
+  builtin_package_raycastPreferences: {
+    provider_schemaVersion: 1,
+    preferencesGeneral: { raycastGlobalHotkey: 'Command-49' },
+    preferencesAdvanced: { popToRootTimeout: 60, didMigrateSomething: true },
+  },
+  builtin_package_rootSearch: {
+    provider_schemaVersion: 1,
+    rootSearch: [
+      { key: 'builtin_command_windowManagementLeftHalf', type: 'command', hotkey: 'Option-Command-123' },
+      { key: 'com.example.Editor', type: 'systemApp', path: '/Applications/Editor.app', alias: 'ed' },
+      { key: 'raycastQuicklink_Q1', type: 'quicklink', alias: 's' },
+      { key: 'extension_brew.clean-up__0000', type: 'nodeCommand', hotkey: 'Shift-Control-99' },
+      { key: 'com.example.Unused', type: 'systemApp', path: '/Applications/Unused.app' },
+    ],
+  },
+  builtin_package_raycastExtensions: {
+    provider_schemaVersion: 1,
+    extensions: [{
+      name: 'brew', title: 'Brew', owner: 'sam',
+      commands: [{ name: 'search', enabled: true }, { name: 'clean-up', enabled: false, prefs: [{ name: 'greedy', type: 'checkbox', value: true }] }],
+      prefs: [{ name: 'apiToken', type: 'password', value: 'tok-secret-value' }, { name: 'unset', type: 'textfield' }],
+    }],
+  },
 };
 
 /** Creates a temporary directory that is removed when the test (or suite) ends. */

@@ -61,6 +61,23 @@ export function timestamp(value) {
   return String(value).replace(/^(\d{4}-\d\d-\d\d)T(\d\d:\d\d:\d\d)(\.\d+)?Z$/, '$1 $2 UTC');
 }
 
+/** Parses an export date (an ISO string, or milliseconds since 1970) into a Date; undefined when it is not one. */
+export function toDate(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const date = new Date(typeof value === 'number' ? value : String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/** Inline code that stays intact whatever backticks the text contains. */
+export function codeSpan(text) {
+  const s = String(text ?? '').replace(/\s*\n\s*/g, ' ');
+  let longest = 0;
+  for (const m of s.matchAll(/`+/g)) longest = Math.max(longest, m[0].length);
+  const marks = '`'.repeat(longest + 1);
+  const pad = /^`|`$/.test(s) ? ' ' : '';
+  return `${marks}${pad}${s}${pad}${marks}`;
+}
+
 export const escapeHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** A collapsible block. `summary` must already be HTML-safe. */

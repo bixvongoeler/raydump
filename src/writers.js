@@ -1,13 +1,15 @@
 // Markdown writers, one per kind of data. Each takes the parsed category from the
-// export and an OutputDir, and returns rows for the summary printed at the end.
+// export, an OutputDir and a context for looking at other categories, and returns
+// rows for the summary printed at the end.
 // Exports differ between Raycast versions, so every field is treated as optional.
 // Raycast 1.x keeps the same kinds of data under other keys and field names; where
 // the shape is close enough the same writer handles both.
 
 import { richTextToMarkdown } from './richtext.js';
 import {
-  safeName, safeFileName, uniqueNamer, fence, timestamp, details, escapeHtml, tableCell, linkTarget, compareDates,
+  safeName, safeFileName, uniqueNamer, fence, timestamp, toDate, details, escapeHtml, tableCell, linkTarget, compareDates,
 } from './markdown.js';
+import { writeSettings, writeClassicSettings, writeMemory } from './settings.js';
 
 const list = value => (Array.isArray(value) ? value : []);
 const join = parts => parts.join('\n\n') + '\n';
@@ -24,6 +26,13 @@ function decodeDocument(value) {
     return undefined; // the plain text of the note is used instead
   }
 }
+
+/**
+ * A link that opens the note in Raycast, on a computer that still has it. Raycast 2.x takes
+ * the note id as `arguments` (the form its own quicklinks to notes use); 1.x took `context`.
+ */
+const noteLink = (id, classic) =>
+  `raycast://extensions/raycast/raycast-notes/raycast-notes?${classic ? 'context' : 'arguments'}=${encodeURIComponent(JSON.stringify({ id }))}`;
 
 function writeNotes(data, out, { classic = false } = {}) {
   const notes = list(data.notes);
@@ -45,16 +54,18 @@ function writeNotes(data, out, { classic = false } = {}) {
     const text = typeof note.text === 'string' ? note.text : '';
     const doc = classic ? decodeDocument(note.document) : note.rawContent;
     const body = doc?.content ? richTextToMarkdown(doc, { resolveImage: id => imagePaths.get(id) }) : text;
+    const updated = note.updatedAt ?? note.lastModifiedAt ?? note.modifiedAt;
     const frontMatter = [
       '---',
       `id: ${note.id}`,
       `created: ${note.createdAt ?? ''}`,
-      `updated: ${note.updatedAt ?? note.lastModifiedAt ?? note.modifiedAt ?? ''}`,
+      `updated: ${updated ?? ''}`,
       ...(classic ? [] : [`pinned: ${Boolean(note.pinned)}`]), // 1.x exports do not say
+      ...(typeof note.id === 'string' && note.id ? [`raycast: ${noteLink(note.id, classic)}`] : []),
       '---',
     ].join('\n');
     const title = note.title?.trim() || text.trim().split('\n')[0];
-    out.write(`notes/${noteName(safeName(title), '.md')}`, `${frontMatter}\n${body}\n`);
+    out.write(`notes/${noteName(safeName(title), '.md')}`, `${frontMatter}\n${body}\n`, { created: toDate(note.createdAt), modified: toDate(updated) });
   }
 
   const rows = notes.length ? [{ count: notes.length, label: 'notes', path: 'notes/' }] : [];
@@ -166,8 +177,10 @@ function writeChats(ai, out) {
 
     const dir = `ai-chats/${safeName(chat.source ?? 'unknown')}`;
     if (!namers.has(dir)) namers.set(dir, uniqueNamer());
-    const date = /^\d{4}-\d\d-\d\d/.exec(String(chat.createdAt ?? messages[0].createdAt ?? ''))?.[0];
-    out.write(`${dir}/${namers.get(dir)(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts));
+    const created = chat.createdAt ?? messages[0].createdAt;
+    const date = /^\d{4}-\d\d-\d\d/.exec(String(created ?? ''))?.[0];
+    out.write(`${dir}/${namers.get(dir)(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts),
+      { created: toDate(created), modified: toDate(chat.updatedAt ?? messages.at(-1).createdAt) });
     written++;
   }
   return written ? [{ count: written, label: 'AI chats', path: 'ai-chats/' }] : [];
@@ -207,8 +220,10 @@ function writeClassicChats(ai, out) {
       parts.push(String(message.text ?? '') + attachments + (message.isCancelled ? '\n\n_(canceled)_' : ''));
     }
 
-    const date = /^\d{4}-\d\d-\d\d/.exec(String(record.createdAt ?? messages[0].timestamp ?? ''))?.[0];
-    out.write(`ai-chats/${name(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts));
+    const created = record.createdAt ?? messages[0].timestamp;
+    const date = /^\d{4}-\d\d-\d\d/.exec(String(created ?? ''))?.[0];
+    out.write(`ai-chats/${name(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts),
+      { created: toDate(classicDate(created)), modified: toDate(classicDate(record.modifiedAt ?? messages.at(-1).timestamp)) });
     written++;
   }
   return written ? [{ count: written, label: 'AI chats', path: 'ai-chats/' }] : [];
@@ -304,7 +319,7 @@ function writeClipboard(data, out) {
         if (r.contentType === 'blob' && ext && (!text || ALWAYS_SAVE.test(r.mimeType))) {
           const base = `${String(n + 1).padStart(5, '0')}-${safeName(entry.contentHash ?? 'item', 40)}`;
           const path = `clipboard-files/${fileName(base, `.${ext}`)}`;
-          out.write(path, Buffer.from(r.content, 'base64'));
+          out.write(path, Buffer.from(r.content, 'base64'), { created: toDate(entry.createdAt) });
           parts.push(`Saved: [${path}](${linkTarget(path)})`);
           files++;
           rendered = true;
@@ -332,14 +347,17 @@ function writeClipboard(data, out) {
 export const SECTIONS = [
   { name: 'notes', category: 'notes', write: writeNotes },
   { name: 'chats', category: 'ai', write: writeChats },
+  { name: 'memory', category: 'settings', write: writeMemory },
   { name: 'transcriptions', category: 'ai', write: writeTranscriptions },
   { name: 'snippets', category: 'snippets', write: writeSnippets },
   { name: 'quicklinks', category: 'quicklinks', write: writeQuicklinks },
   { name: 'clipboard', category: 'clipboardHistory', write: writeClipboard },
-  // Raycast 1.x. Its exports hold no clipboard or dictation history.
+  { name: 'settings', category: 'settings', write: writeSettings },
+  // Raycast 1.x. Its exports hold no clipboard history, dictation history or AI memory.
   { name: 'notes', category: 'builtin_package_raycastNotes', write: (data, out) => writeNotes(data, out, { classic: true }) },
   { name: 'notes', category: 'builtin_package_floatingNotes', write: writeFloatingNote },
   { name: 'chats', category: 'builtin_package_open-ai', write: writeClassicChats },
   { name: 'snippets', category: 'builtin_package_snippets', write: writeSnippets },
   { name: 'quicklinks', category: 'builtin_package_quicklinks', write: writeQuicklinks },
+  { name: 'settings', category: 'builtin_package_raycastPreferences', write: writeClassicSettings },
 ];

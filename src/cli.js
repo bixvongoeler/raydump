@@ -129,6 +129,32 @@ function extract(json, info, outDir, sections, warn) {
   const { encryption, ...header } = info.header;
   if (sections.has('json') && Object.keys(header).length) out.write('json/_export-header.json', JSON.stringify(header, null, 2) + '\n');
 
+  // What a writer may look at besides its own category. Lookups give undefined rather than fail.
+  const raw = new Map(members.map(m => [m.key, m.value]));
+  const parse = buf => {
+    try {
+      return JSON.parse(buf.toString('utf8'));
+    } catch {
+      return undefined;
+    }
+  };
+  const context = {
+    header,
+    sections,
+    categories: [...raw.keys()],
+    size: key => raw.get(key)?.length ?? 0,
+    lookup: key => (raw.has(key) ? parse(raw.get(key)) : undefined),
+    // One member of a category without parsing the rest of it; the AI category can be very large.
+    lookupMember(key, member) {
+      try {
+        const found = splitTopLevel(raw.get(key)).find(m => m.key === member);
+        return found && parse(found.value);
+      } catch {
+        return undefined;
+      }
+    },
+  };
+
   let jsonFiles = 0;
   for (const { key, value } of members) {
     if (sections.has('json')) {
@@ -149,7 +175,7 @@ function extract(json, info, outDir, sections, warn) {
     if (data === null || typeof data !== 'object') continue;
     for (const section of writers) {
       try {
-        rows.push(...section.write(data, out));
+        rows.push(...section.write(data, out, context));
       } catch (error) {
         warn(`Could not write ${section.name} (${error.message})`);
       }

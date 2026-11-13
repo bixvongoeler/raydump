@@ -1,5 +1,16 @@
-import { mkdirSync, writeFileSync, openSync, writeSync, closeSync } from 'node:fs';
+import { mkdirSync, writeFileSync, openSync, writeSync, closeSync, utimesSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+
+function stamp(path, { created, modified = created }) {
+  try {
+    // macOS moves a file's creation date back when it is dated earlier than that, so dating
+    // it to `created` first gives both dates there. Elsewhere only the modified date changes.
+    if (created) utimesSync(path, created, created);
+    if (modified) utimesSync(path, modified, modified);
+  } catch {
+    // The dates are a convenience; a file system that refuses them still has the file.
+  }
+}
 
 /**
  * Writes files below one root directory. Paths are given with forward slashes
@@ -24,9 +35,16 @@ export class OutputDir {
     return path;
   }
 
-  /** @param {string} relativePath @param {string | Buffer} content */
-  write(relativePath, content) {
-    writeFileSync(this.#resolve(relativePath), content);
+  /**
+   * @param {string} relativePath
+   * @param {string | Buffer} content
+   * @param {{ created?: Date, modified?: Date }} [dates] when the content was made and last changed.
+   *   The file is dated to match, so notes and chats sort by their real age in a file manager.
+   */
+  write(relativePath, content, dates) {
+    const path = this.#resolve(relativePath);
+    writeFileSync(path, content);
+    if (dates) stamp(path, dates);
   }
 
   /**

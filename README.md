@@ -71,6 +71,8 @@ npm install -g raydump
 
 - The `json/` folder contains the complete export: settings, extensions, window layouts, themes, usage history, etc.
 - The `markdown` files are generated from the `json` files to create human/agent readable views of key data categories.
+- `settings.md` lists your settings, hotkeys, aliases and extensions in plain words, and `ai-memory.md` holds what Raycast AI has remembered about you.
+- Notes and chats are dated with their real created and modified times, so they sort correctly in Finder or a notes app. Each note also carries a `raycast://` link that opens it in Raycast.
 
 ## Detailed CLI Usage
 
@@ -88,7 +90,7 @@ raydump <export.rayconfig> [options]
   -h, --help            Show help
   -v, --version         Show the version
 
-Sections: json, notes, chats, transcriptions, snippets, quicklinks, clipboard
+Sections: json, notes, chats, memory, transcriptions, snippets, quicklinks, clipboard, settings
 ```
 
 Examples:
@@ -124,13 +126,16 @@ Exports made without a password need none.
 
 ## Privacy
 
-> [!WARNING] The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
+> [!WARNING]
+> The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
 
 `--skip clipboard` leaves the clipboard history out of the Markdown, but `json/clipboardHistory.json` still contains it. To leave it out completely, name what you do want, for example `--only notes,chats,snippets,quicklinks`.
 
+`settings.md` names anything that looks like a credential, such as an API key or token, without showing it. The files in `json/` still contain those values.
+
 ## Limitations
 
-- Raycast 1.x exports contain no clipboard or dictation history, so there is no `clipboard.md` or `transcriptions.md` for them.
+- Raycast 1.x exports contain no clipboard history, dictation history or AI memory, so there is no `clipboard.md`, `transcriptions.md` or `ai-memory.md` for them.
 - Most images and files in the clipboard history are not inside the export. Raycast stores them in its own data folder and the export only records their paths. `clipboard.md` lists those paths; the files are still on the computer that made the export.
 - The export format is not documented by Raycast and may change. `raydump` reports an unknown format instead of guessing.
 

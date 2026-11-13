@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { safeName, safeFileName, uniqueNamer, fence, timestamp, compareDates, linkTarget, tableCell } from '../src/markdown.js';
+import { safeName, safeFileName, uniqueNamer, fence, codeSpan, timestamp, toDate, compareDates, linkTarget, tableCell } from '../src/markdown.js';
 
 test('safeName removes characters that are invalid on any platform', () => {
   assert.equal(safeName('a/b\\c:d*e?f"g<h>i|j'), 'a b c d e f g h i j');
@@ -68,4 +68,17 @@ test('linkTarget and tableCell escape what Markdown would misread', () => {
   assert.equal(linkTarget('plain/path.png'), 'plain/path.png');
   assert.equal(linkTarget('my file (1).png'), '<my file (1).png>');
   assert.equal(tableCell('a|b\nc'), 'a\\|b c');
+});
+
+test('codeSpan survives backticks and line breaks in the text', () => {
+  assert.equal(codeSpan('plain'), '`plain`');
+  assert.equal(codeSpan('a`b'), '``a`b``');
+  assert.equal(codeSpan('`edge`'), '`` `edge` ``');
+  assert.equal(codeSpan('two\n  lines'), '`two lines`');
+});
+
+test('toDate reads ISO strings and millisecond numbers, and nothing else', () => {
+  assert.equal(toDate('2026-01-02T03:04:05.000Z').toISOString(), '2026-01-02T03:04:05.000Z');
+  assert.equal(toDate(1767312000000).toISOString(), '2026-01-02T00:00:00.000Z');
+  for (const value of [undefined, null, '', 'not a date', {}]) assert.equal(toDate(value), undefined);
 });

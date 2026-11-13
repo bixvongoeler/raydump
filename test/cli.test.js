@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeRaycfg3, encodeWrapped, encodeClassic, sampleExport, classicExport, tempDir, runCli, PNG } from './helpers.js';
 
@@ -17,6 +17,7 @@ function setup(t, file = encodeRaycfg3(sampleExport, { password: PASSWORD })) {
 }
 
 const filesIn = dir => (existsSync(dir) ? readdirSync(dir).sort() : []);
+const modified = path => statSync(path).mtime.toISOString();
 
 test('extracts every section of an encrypted export', t => {
   const { input, out, read } = setup(t);
@@ -24,10 +25,10 @@ test('extracts every section of an encrypted export', t => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
 
-  assert.deepEqual(filesIn(out), ['ai-chats', 'clipboard-files', 'clipboard.md', 'json', 'notes', 'quicklinks.md', 'snippets.md', 'transcriptions.md']);
+  assert.deepEqual(filesIn(out), ['ai-chats', 'ai-memory.md', 'clipboard-files', 'clipboard.md', 'json', 'notes', 'quicklinks.md', 'settings.md', 'snippets.md', 'transcriptions.md']);
 
   // JSON: one file per category plus the export header, without the encryption parameters.
-  assert.deepEqual(filesIn(join(out, 'json')), ['_export-header.json', 'ai.json', 'clipboardHistory.json', 'notes.json', 'quicklinks.json', 'settings.json', 'snippets.json']);
+  assert.deepEqual(filesIn(join(out, 'json')), ['_export-header.json', 'ai.json', 'clipboardHistory.json', 'nodeExtensions.json', 'notes.json', 'quicklinks.json', 'settings.json', 'snippets.json']);
   for (const [category, value] of Object.entries(sampleExport)) {
     assert.deepEqual(JSON.parse(read(`json/${category}.json`)), value);
     assert.equal(read(`json/${category}.json`), JSON.stringify(value, null, 2) + '\n');
@@ -35,12 +36,14 @@ test('extracts every section of an encrypted export', t => {
   assert.deepEqual(JSON.parse(read('json/_export-header.json')), { exportedAt: '2026-01-02T03:04:05.000Z', appVersion: '2.0.0.0', schemaVersion: 3 });
 
   // Notes: rich text becomes Markdown, same-named notes do not overwrite each other, images are saved and linked.
+  // Each note carries a link that opens it in Raycast.
   assert.deepEqual(filesIn(join(out, 'notes')), ['Trip plan.md', 'images', 'trip plan (2).md']);
   assert.equal(read('notes/Trip plan.md'), [
-    '---', 'id: NOTE1', 'created: 2026-01-01T00:00:00.000Z', 'updated: 2026-01-02T00:00:00.000Z', 'pinned: true', '---',
+    '---', 'id: NOTE1', 'created: 2026-01-01T00:00:00.000Z', 'updated: 2026-01-02T00:00:00.000Z', 'pinned: true',
+    'raycast: raycast://extensions/raycast/raycast-notes/raycast-notes?arguments=%7B%22id%22%3A%22NOTE1%22%7D', '---',
     '# Trip plan', '', 'Pack **light**.', '', '- [x] Passport', '- [ ] Tickets', '', '![map](images/map.png)', '',
   ].join('\n'));
-  assert.match(read('notes/trip plan (2).md'), /pinned: false\n---\nPlain text only\n$/);
+  assert.match(read('notes/trip plan (2).md'), /pinned: false\nraycast: raycast:\/\/\S+NOTE2%22%7D\n---\nPlain text only\n$/);
   assert.deepEqual(readFileSync(join(out, 'notes', 'images', 'map.png')), PNG);
 
   // Chats: grouped by source, named by date and title, messages in chronological order.
@@ -76,8 +79,10 @@ test('extracts every section of an encrypted export', t => {
 
   // Summary
   assert.match(result.stdout, /^Raycast 2\.0\.0\.0 export from 2026-01-02T03:04:05\.000Z -> .*out\n/);
-  assert.match(result.stdout, /\n\s+6 {2}categories as JSON\s+json\/\n/);
+  assert.match(result.stdout, /\n\s+7 {2}categories as JSON\s+json\/\n/);
   assert.match(result.stdout, /\n\s+3 {2}AI chats\s+ai-chats\/\n/);
+  assert.match(result.stdout, /\n\s+2 {2}AI memories\s+ai-memory\.md\n/);
+  assert.match(result.stdout, /\n\s+21 {2}settings\s+settings\.md\n/);
   assert.match(result.stdout, /\n\s+1 {2}note images\s+notes\/images\/\n/);
   assert.match(result.stdout, /not encrypted/);
 });
@@ -128,7 +133,86 @@ test('--only and --skip choose sections', t => {
 
   const other = join(dir, 'other');
   assert.equal(runCli([input, '-o', other, '--skip', 'json,clipboard,chats'], { env: PASSWORD_ENV }).status, 0);
-  assert.deepEqual(filesIn(other), ['notes', 'quicklinks.md', 'snippets.md', 'transcriptions.md']);
+  assert.deepEqual(filesIn(other), ['ai-memory.md', 'notes', 'quicklinks.md', 'settings.md', 'snippets.md', 'transcriptions.md']);
+
+  const third = join(dir, 'third');
+  assert.equal(runCli([input, '-o', third, '--only', 'settings'], { env: PASSWORD_ENV }).status, 0);
+  assert.deepEqual(filesIn(third), ['settings.md']);
+  // Without the memory file to point at, the memory is shown with the other settings.
+  assert.match(readFileSync(join(third, 'settings.md'), 'utf8'), /\| AI memory \| see below \|\n[\s\S]*\*\*AI memory\*\*\n\n```\n\*\*Work\*\*\n\nLikes short answers\.\n```\n/);
+});
+
+test('files are dated like the things they hold', t => {
+  const { input, out } = setup(t);
+  assert.equal(runCli([input, '-o', out], { env: PASSWORD_ENV }).status, 0);
+  assert.equal(modified(join(out, 'notes', 'Trip plan.md')), '2026-01-02T00:00:00.000Z');
+  assert.equal(modified(join(out, 'ai-chats', 'chat', '2026-01-02 Greek letters.md')), '2026-01-02T10:01:00.000Z');
+  // A chat with no record of its own is dated by its last message.
+  assert.equal(modified(join(out, 'ai-chats', 'orphaned', '2026-01-05 Orphaned question.md')), '2026-01-05T00:00:00.000Z');
+  assert.equal(modified(join(out, 'clipboard-files', '00001-bbb222.png')), '2026-01-08T12:00:00.000Z');
+  assert.equal(modified(join(out, 'ai-memory.md')), '2026-01-10T00:00:00.000Z');
+  assert.equal(modified(join(out, 'settings.md')), '2026-01-02T03:04:05.000Z');
+
+  // Raycast 1.x writes chat dates without a time zone; they are UTC.
+  const classic = setup(t, encodeClassic(classicExport));
+  assert.equal(runCli([classic.input, '-o', classic.out]).status, 0);
+  assert.equal(modified(join(classic.out, 'notes', 'Groceries.md')), '2025-01-02T00:00:00.000Z');
+  assert.equal(modified(join(classic.out, 'ai-chats', '2025-02-03 sram vs dram.md')), '2025-02-03T04:05:09.000Z');
+});
+
+test('writes AI memory and a readable list of settings', t => {
+  const { input, out, read } = setup(t);
+  assert.equal(runCli([input, '-o', out], { env: PASSWORD_ENV }).status, 0);
+
+  // The general memory comes from the settings, a project's memory from its chat folder. Headings inside
+  // the remembered text are pushed down to sit under the file's own; fenced text is left alone.
+  assert.equal(read('ai-memory.md'), [
+    '# AI memory', '', '_What Raycast AI has remembered from your chats, as it stood when the export was made._', '',
+    '## General memory', '', '_Last updated 2026-01-10 00:00:00 UTC_', '', '**Work**', '', 'Likes short answers.', '',
+    '## Project memory: Garden', '', '_Last updated 2026-01-09 00:00:00 UTC · memory is turned off_', '',
+    '### Project Memory', '', '- Tomatoes need sun.', '', '```', '# not a heading', '```', '',
+  ].join('\n'));
+
+  assert.equal(read('settings.md'), [
+    '# Raycast settings', '',
+    '_A readable view of `json/settings.json`, exported from Raycast 2.0.0.0 at 2026-01-02 03:04:05 UTC. Usage history, theme colours and anything that looks like a credential are left to the JSON._', '',
+    '## General', '', '| Setting | Value |', '|---|---|',
+    '| Open at login | yes |', '| Appearance | `dark` |', '| UI zoom | 1.1 |', '| Additional certificate authorities | none |',
+    '| Global hotkey | ⌘ Space |', '| Installation date | 2025-12-01 00:00:00 UTC |', '',
+    // Commands are named from their ids; ones made from the user's data are looked up in the category that holds them.
+    '## Hotkeys', '', '| Command | Hotkey |', '|---|---|',
+    '| AI › Fix Writing | double-tap right ⌘ |', '| Clipboard History › History | ⌃⌥⇧⌘ V |', '| Window Management › Left Half | ⇧⌘ alone |', '',
+    '## Aliases', '', '| Command | Alias |', '|---|---|', '| Quicklinks › Search \\| Docs | `docs` |', '',
+    '## Favorites', '', '1. Clipboard History › History', '',
+    '## Fallback commands', '', '1. Quicklinks › Search | Docs', '',
+    '## Extensions', '',
+    '### Installed', '', '| Extension | Author | State |', '|---|---|---|', '| Tooth Pick | sam | on |', '',
+    '### Built in', '', '| Extension | State |', '|---|---|', '| AI | on |', '| Windows Taskbar | off |', '',
+    // Shortcuts have no name in the export, so they are counted.
+    '## Disabled commands', '', '- **Apple Shortcuts:** 2 shortcuts', '- **Tooth Pick:** Connect Device', '',
+    '## Extension settings', '', '### AI', '', '| Setting | Value |', '|---|---|',
+    '| AI memory | see `ai-memory.md` |', '| AI memory enabled | yes |', '| AI memory last updated | 2026-01-10 00:00:00 UTC |',
+    '| AI BYOK API keys | hidden (see the JSON) |', '| AI profile | see below |', '| Skill directories | `~/skills`, `*.tmp` |',
+    '| Auto quit rules | see below |', '| Widgets › End | `clock` |', '| Weather location | empty |', '| Default editor | not set |', '',
+    '**AI profile**', '', '```', 'Line one', 'Line two', '```', '',
+    '**Auto quit rules**', '', '- Name: `Mail`, Interval minutes: 3', '',
+    // When a command last ran is not a setting.
+    '## Command settings', '', '| Command | Setting | Value |', '|---|---|---|', '| Tooth Pick › Connect Device | Delta | 64 |', '',
+    '## Themes', '', '- Night (dark)', '',
+  ].join('\n'));
+  assert.ok(!read('settings.md').includes('sk-secret-value'));
+});
+
+test('an export without settings or memory to show writes neither file', t => {
+  const bare = { settings: { general: {}, internalExtensions: [{ id: 'e:r:ai', enabled: true, meta: { aiMemory: ' ' } }], schemaVersion: 1 }, ai: { folders: [{ id: 'F1', name: 'Empty' }] } };
+  const { input, out } = setup(t, encodeRaycfg3(bare));
+  const result = runCli([input, '-o', out, '--only', 'memory']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(filesIn(out), []);
+  assert.equal(runCli([input, '-o', out, '--only', 'settings,memory', '--force']).status, 0);
+  assert.deepEqual(filesIn(out), ['settings.md']); // the blank memory is still a setting
+  assert.equal(runCli([setup(t, encodeRaycfg3({ settings: { schemaVersion: 1 } })).input, '-o', join(out, 'none'), '--only', 'settings']).status, 0);
+  assert.deepEqual(filesIn(join(out, 'none')), []);
 });
 
 test('rejects unknown sections and conflicting flags as usage errors', t => {
@@ -199,14 +283,15 @@ test('extracts a Raycast 1.x export as JSON and Markdown', t => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
 
-  assert.deepEqual(filesIn(out), ['ai-chats', 'floating-notes.md', 'json', 'notes', 'quicklinks.md', 'snippets.md']);
+  assert.deepEqual(filesIn(out), ['ai-chats', 'floating-notes.md', 'json', 'notes', 'quicklinks.md', 'settings.md', 'snippets.md']);
   assert.deepEqual(filesIn(join(out, 'json')), Object.keys(classicExport).map(key => `${key}.json`).sort());
   for (const [category, value] of Object.entries(classicExport)) assert.deepEqual(JSON.parse(read(`json/${category}.json`)), value);
 
   // Notes: the rich text is base64 JSON; a note whose document cannot be read falls back to its plain text.
   assert.deepEqual(filesIn(join(out, 'notes')), ['Groceries.md', 'Scratch.md']);
-  assert.equal(read('notes/Groceries.md'), ['---', 'id: N1', 'created: 2025-01-01T00:00:00Z', 'updated: 2025-01-02T00:00:00Z', '---', 'Buy **today**', '', '- [ ] Milk', ''].join('\n'));
-  assert.equal(read('notes/Scratch.md'), '---\nid: N2\ncreated: 2025-01-04T00:00:00Z\nupdated: 2025-01-04T00:00:00Z\n---\nPlain text only\n');
+  const link = id => `raycast: raycast://extensions/raycast/raycast-notes/raycast-notes?context=%7B%22id%22%3A%22${id}%22%7D`;
+  assert.equal(read('notes/Groceries.md'), ['---', 'id: N1', 'created: 2025-01-01T00:00:00Z', 'updated: 2025-01-02T00:00:00Z', link('N1'), '---', 'Buy **today**', '', '- [ ] Milk', ''].join('\n'));
+  assert.equal(read('notes/Scratch.md'), `---\nid: N2\ncreated: 2025-01-04T00:00:00Z\nupdated: 2025-01-04T00:00:00Z\n${link('N2')}\n---\nPlain text only\n`);
   assert.equal(read('floating-notes.md'), 'call the bank\n');
 
   // Chats: one file each, named by date and title, messages in chronological order, dates read as UTC.
@@ -226,8 +311,25 @@ test('extracts a Raycast 1.x export as JSON and Markdown', t => {
     '| Old (disabled) | `https://example.org` |  | 0 | 2025-01-02 00:00:00 UTC |', '',
   ].join('\n'));
 
+  // Settings: gathered from the feature categories; hotkeys and aliases come from root search, and a password is not shown.
+  assert.equal(read('settings.md'), [
+    '# Raycast settings', '',
+    '_A readable view of the settings in `json/`, from Raycast 1.100.0. Usage history and anything that looks like a credential are left to the JSON._', '',
+    '## General', '', '| Setting | Value |', '|---|---|', '| Raycast global hotkey | ⌘ Space |', '',
+    '## Advanced', '', '| Setting | Value |', '|---|---|', '| Pop to root timeout | 60 |', '',
+    '## Hotkeys', '', '| Command | Hotkey |', '|---|---|', '| Brew › Clean Up | ⌃⇧ F3 |', '| Window Management Left Half | ⌥⌘ ← |', '',
+    '## Aliases', '', '| Command | Alias |', '|---|---|', '| Editor | `ed` |', '| Search | `s` |', '',
+    '## Extensions', '', '| Extension | Author | Commands on |', '|---|---|---|', '| Brew | sam | 1 of 2 |', '',
+    '### Extension preferences', '', '| Extension | Setting | Value |', '|---|---|---|',
+    '| Brew | API token | hidden (see the JSON) |', '| Brew › Clean Up | Greedy | yes |', '',
+    '## Open AI', '', '| Setting | Value |', '|---|---|', '| AI chat presets | none |', '| AI commands | none |', '',
+    '## Quicklinks', '', '| Setting | Value |', '|---|---|', '| Enable quick search | no |', '',
+    '## Clipboard History', '', '| Setting | Value |', '|---|---|', '| Clipboard history enable link preview | yes |', '',
+  ].join('\n'));
+
   assert.match(result.stdout, /^Raycast 1\.x export -> /);
-  assert.match(result.stdout, /\n\s+7 {2}categories as JSON\s+json\/\n/);
+  assert.match(result.stdout, /\n\s+10 {2}categories as JSON\s+json\/\n/);
+  assert.match(result.stdout, /\n\s+12 {2}settings\s+settings\.md\n/);
   assert.match(result.stdout, /\n\s+2 {2}notes\s+notes\/\n/);
   assert.match(result.stdout, /\n\s+1 {2}floating note\s+floating-notes\.md\n/);
   assert.match(result.stdout, /\n\s+2 {2}AI chats\s+ai-chats\/\n/);
@@ -239,7 +341,7 @@ test('--only and --skip choose sections of a Raycast 1.x export', t => {
   assert.equal(runCli([input, '-o', out, '--only', 'notes']).status, 0);
   assert.deepEqual(filesIn(out), ['floating-notes.md', 'notes']);
   assert.equal(runCli([input, '-o', out, '--force', '--skip', 'json,notes,chats']).status, 0);
-  assert.deepEqual(filesIn(out), ['floating-notes.md', 'notes', 'quicklinks.md', 'snippets.md']);
+  assert.deepEqual(filesIn(out), ['floating-notes.md', 'notes', 'quicklinks.md', 'settings.md', 'snippets.md']);
 });
 
 test('a Raycast 1.x export with nothing to read as Markdown is written as JSON only', t => {
@@ -288,7 +390,7 @@ test('--help, --version and missing arguments', () => {
   const help = runCli(['--help']);
   assert.equal(help.status, 0);
   assert.match(help.stdout, /^Usage: raydump <export\.rayconfig> \[options\]/);
-  assert.match(help.stdout, /\nSections: json, notes, chats, transcriptions, snippets, quicklinks, clipboard\n$/);
+  assert.match(help.stdout, /\nSections: json, notes, chats, memory, transcriptions, snippets, quicklinks, clipboard, settings\n$/);
 
   const version = runCli(['--version']);
   assert.equal(version.status, 0);
