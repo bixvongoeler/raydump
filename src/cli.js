@@ -8,7 +8,7 @@ import { safeName } from './markdown.js';
 import { SECTIONS } from './writers.js';
 
 const NAME = 'raydump';
-const SECTION_NAMES = ['json', ...SECTIONS.map(s => s.name)];
+const SECTION_NAMES = ['json', ...new Set(SECTIONS.map(s => s.name))];
 const PASSWORD_ENV = 'RAYCAST_EXPORT_PASSWORD';
 const PASSWORD_ATTEMPTS = 3;
 
@@ -165,7 +165,6 @@ function printSummary(info, outDir, rows) {
   const lines = [`${source} -> ${outDir}`, ''];
   const width = Math.max(...rows.map(r => r.label.length));
   for (const r of rows) lines.push(`  ${String(r.count).padStart(6)}  ${r.label.padEnd(width)}  ${r.path}`);
-  if (info.format === 'classic') lines.push('', 'Raycast 1.x exports are written as JSON only; Markdown output needs a Raycast 2.x export.');
   lines.push('', 'These files are not encrypted and can include private data such as clipboard history and AI chats.');
   process.stdout.write(lines.join('\n') + '\n');
 }

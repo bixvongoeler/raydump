@@ -1,6 +1,6 @@
 {
   "name": "raydump",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Decrypt a Raycast .rayconfig export with its password and extract your data as readable Markdown and JSON",
   "keywords": ["raycast", "rayconfig", "export", "backup", "decrypt", "data-portability"],
   "homepage": "https://github.com/bixvongoeler/raydump#readme",

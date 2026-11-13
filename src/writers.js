@@ -1,6 +1,8 @@
 // Markdown writers, one per kind of data. Each takes the parsed category from the
 // export and an OutputDir, and returns rows for the summary printed at the end.
 // Exports differ between Raycast versions, so every field is treated as optional.
+// Raycast 1.x keeps the same kinds of data under other keys and field names; where
+// the shape is close enough the same writer handles both.
 
 import { richTextToMarkdown } from './richtext.js';
 import {
@@ -12,7 +14,18 @@ const join = parts => parts.join('\n\n') + '\n';
 
 // ---------------------------------------------------------------- notes
 
-function writeNotes(data, out) {
+/** Raycast 1.x stores a note's rich text as base64-encoded JSON. */
+function decodeDocument(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string') return undefined;
+  try {
+    return JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
+  } catch {
+    return undefined; // the plain text of the note is used instead
+  }
+}
+
+function writeNotes(data, out, { classic = false } = {}) {
   const notes = list(data.notes);
   const images = list(data.images);
 
@@ -30,24 +43,30 @@ function writeNotes(data, out) {
   const noteName = uniqueNamer();
   for (const note of notes) {
     const text = typeof note.text === 'string' ? note.text : '';
-    const body = note.rawContent?.content
-      ? richTextToMarkdown(note.rawContent, { resolveImage: id => imagePaths.get(id) })
-      : text;
+    const doc = classic ? decodeDocument(note.document) : note.rawContent;
+    const body = doc?.content ? richTextToMarkdown(doc, { resolveImage: id => imagePaths.get(id) }) : text;
     const frontMatter = [
       '---',
       `id: ${note.id}`,
       `created: ${note.createdAt ?? ''}`,
-      `updated: ${note.updatedAt ?? note.lastModifiedAt ?? ''}`,
-      `pinned: ${Boolean(note.pinned)}`,
+      `updated: ${note.updatedAt ?? note.lastModifiedAt ?? note.modifiedAt ?? ''}`,
+      ...(classic ? [] : [`pinned: ${Boolean(note.pinned)}`]), // 1.x exports do not say
       '---',
     ].join('\n');
     const title = note.title?.trim() || text.trim().split('\n')[0];
     out.write(`notes/${noteName(safeName(title), '.md')}`, `${frontMatter}\n${body}\n`);
   }
 
-  const rows = [{ count: notes.length, label: 'notes', path: 'notes/' }];
+  const rows = notes.length ? [{ count: notes.length, label: 'notes', path: 'notes/' }] : [];
   if (imagePaths.size) rows.push({ count: imagePaths.size, label: 'note images', path: 'notes/images/' });
   return rows;
+}
+
+/** Raycast 1.x: the single note of the older Floating Notes feature. */
+function writeFloatingNote(data, out) {
+  if (typeof data.note !== 'string' || !data.note.trim()) return [];
+  out.write('floating-notes.md', data.note.endsWith('\n') ? data.note : `${data.note}\n`);
+  return [{ count: 1, label: 'floating note', path: 'floating-notes.md' }];
 }
 
 // ---------------------------------------------------------------- AI chats
@@ -61,16 +80,18 @@ function renderToolResult(result) {
   return JSON.stringify(result, null, 2);
 }
 
+function attachmentLine(a) {
+  let label = String((typeof a === 'string' ? a : a?.filename ?? a?.name ?? a?.path ?? a?.id) ?? 'file');
+  try { label = decodeURIComponent(label); } catch { /* keep the raw name */ }
+  return `_Attachment: ${label} (${a?.contentType ?? a?.type ?? 'unknown type'})_`;
+}
+
 function renderMessage(message) {
   const c = typeof message.content === 'string' ? { type: 'text', text: message.content } : (message.content ?? {});
   switch (c.type) {
     case 'user-query': {
       let s = c.text ?? '';
-      for (const a of list(c.attachments)) {
-        let label = String(a.filename ?? a.path ?? a.id ?? 'file');
-        try { label = decodeURIComponent(label); } catch { /* keep the raw name */ }
-        s += `\n\n_Attachment: ${label} (${a.contentType ?? a.type ?? 'unknown type'})_`;
-      }
+      for (const a of list(c.attachments)) s += `\n\n${attachmentLine(a)}`;
       return s;
     }
     case 'text': {
@@ -149,7 +170,48 @@ function writeChats(ai, out) {
     out.write(`${dir}/${namers.get(dir)(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts));
     written++;
   }
-  return [{ count: written, label: 'AI chats', path: 'ai-chats/' }];
+  return written ? [{ count: written, label: 'AI chats', path: 'ai-chats/' }] : [];
+}
+
+// Raycast 1.x writes chat dates as "2024-10-19 04:25:37.397", in UTC without saying so.
+const classicDate = value => String(value ?? '').replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d(\.\d+)?)$/, '$1T$2Z');
+
+/** Raycast 1.x: each chat carries its own messages, and a message is plain text. */
+function writeClassicChats(ai, out) {
+  const name = uniqueNamer();
+  let written = 0;
+  for (const chat of list(ai.aiChats)) {
+    const record = chat?.record ?? {};
+    const messages = list(chat?.messages).filter(m => m && typeof m === 'object')
+      .sort((a, b) => compareDates(classicDate(a.timestamp), classicDate(b.timestamp)));
+    if (!messages.length) continue;
+
+    const firstQuery = messages.find(m => m.source === 'user')?.text ?? '';
+    const title = record.title?.trim() || String(firstQuery).trim().split('\n')[0].slice(0, 80) || 'Untitled';
+    const meta = [
+      ['Chat ID', record.id], ['Model', record.model],
+      ['Created', timestamp(classicDate(record.createdAt))], ['Updated', timestamp(classicDate(record.modifiedAt))],
+    ].filter(([, value]) => value).map(([key, value]) => `- **${key}:** ${value}`);
+    const parts = [`# ${title}`];
+    if (meta.length) parts.push(meta.join('\n'));
+
+    let speaker;
+    for (const message of messages) {
+      const who = message.source === 'user' ? 'User' : 'Assistant';
+      if (who !== speaker) {
+        const model = who === 'Assistant' && message.modelUsed ? ` · ${message.modelUsed}` : '';
+        parts.push(`## ${who}${model} · ${timestamp(classicDate(message.timestamp))}`);
+        speaker = who;
+      }
+      const attachments = list(message.attachments).map(a => `\n\n${attachmentLine(a)}`).join('');
+      parts.push(String(message.text ?? '') + attachments + (message.isCancelled ? '\n\n_(canceled)_' : ''));
+    }
+
+    const date = /^\d{4}-\d\d-\d\d/.exec(String(record.createdAt ?? messages[0].timestamp ?? ''))?.[0];
+    out.write(`ai-chats/${name(safeName(`${date ?? ''} ${title}`), '.md')}`, join(parts));
+    written++;
+  }
+  return written ? [{ count: written, label: 'AI chats', path: 'ai-chats/' }] : [];
 }
 
 function writeTranscriptions(ai, out) {
@@ -175,9 +237,11 @@ function writeSnippets(data, out) {
   if (!snippets.length) return [];
   const parts = ['# Snippets'];
   for (const s of snippets) {
-    const meta = [`Used ${s.copyCount ?? 0}×`, s.createdAt ? `created ${timestamp(s.createdAt)}` : '', s.updatedAt ? `updated ${timestamp(s.updatedAt)}` : '', list(s.tags).join(', ')];
+    const keyword = s.keyword ?? s.alias; // 1.x calls it an alias
+    const updated = s.updatedAt ?? s.modifiedAt;
+    const meta = [`Used ${s.copyCount ?? 0}×`, s.createdAt ? `created ${timestamp(s.createdAt)}` : '', updated ? `updated ${timestamp(updated)}` : '', list(s.tags).join(', ')];
     parts.push(
-      `## ${s.title ?? s.name ?? 'Untitled'}${s.keyword ? ` — \`${s.keyword}\`` : ''}`,
+      `## ${s.title ?? s.name ?? 'Untitled'}${keyword ? ` — \`${keyword}\`` : ''}`,
       fence(typeof s.text === 'string' ? s.text : richTextToMarkdown(s.rawContent)),
       `_${meta.filter(Boolean).join(' · ')}_`,
     );
@@ -189,9 +253,11 @@ function writeSnippets(data, out) {
 function writeQuicklinks(data, out) {
   const quicklinks = list(data.quicklinks);
   if (!quicklinks.length) return [];
+  // 1.x records when a quicklink was last changed rather than when it was created.
+  const [dateLabel, dateKey] = quicklinks.some(q => q?.createdAt) || !quicklinks.some(q => q?.updatedAt) ? ['Created', 'createdAt'] : ['Updated', 'updatedAt'];
   const rows = quicklinks.map(q =>
-    `| ${tableCell(q.name)} | \`${tableCell(q.link)}\` | ${tableCell(q.openWith ?? q.applicationId)} | ${q.openCount ?? 0} | ${timestamp(q.createdAt)} |`);
-  out.write('quicklinks.md', ['# Quicklinks', '', '| Name | Link | Opens with | Opened | Created |', '|---|---|---|---|---|', ...rows].join('\n') + '\n');
+    `| ${tableCell(q.name)}${q.isEnabled === false ? ' (disabled)' : ''} | \`${tableCell(q.link ?? q.url)}\` | ${tableCell(q.openWith ?? q.applicationId ?? q.applicationID)} | ${q.openCount ?? 0} | ${timestamp(q[dateKey])} |`);
+  out.write('quicklinks.md', ['# Quicklinks', '', `| Name | Link | Opens with | Opened | ${dateLabel} |`, '|---|---|---|---|---|', ...rows].join('\n') + '\n');
   return [{ count: quicklinks.length, label: 'quicklinks', path: 'quicklinks.md' }];
 }
 
@@ -261,7 +327,7 @@ function writeClipboard(data, out) {
 
 /**
  * The Markdown sections, in output order. `category` is the top-level key of the
- * export that the section reads.
+ * export that the section reads; a name can appear more than once.
  */
 export const SECTIONS = [
   { name: 'notes', category: 'notes', write: writeNotes },
@@ -270,4 +336,10 @@ export const SECTIONS = [
   { name: 'snippets', category: 'snippets', write: writeSnippets },
   { name: 'quicklinks', category: 'quicklinks', write: writeQuicklinks },
   { name: 'clipboard', category: 'clipboardHistory', write: writeClipboard },
+  // Raycast 1.x. Its exports hold no clipboard or dictation history.
+  { name: 'notes', category: 'builtin_package_raycastNotes', write: (data, out) => writeNotes(data, out, { classic: true }) },
+  { name: 'notes', category: 'builtin_package_floatingNotes', write: writeFloatingNote },
+  { name: 'chats', category: 'builtin_package_open-ai', write: writeClassicChats },
+  { name: 'snippets', category: 'builtin_package_snippets', write: writeSnippets },
+  { name: 'quicklinks', category: 'builtin_package_quicklinks', write: writeQuicklinks },
 ];

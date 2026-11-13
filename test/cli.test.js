@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { encodeRaycfg3, encodeWrapped, encodeClassic, sampleExport, tempDir, runCli, PNG } from './helpers.js';
+import { encodeRaycfg3, encodeWrapped, encodeClassic, sampleExport, classicExport, tempDir, runCli, PNG } from './helpers.js';
 
 const PASSWORD = 'correct horse';
 const PASSWORD_ENV = { RAYCAST_EXPORT_PASSWORD: PASSWORD };
@@ -193,16 +193,63 @@ for (const schemaVersion of [1, 2]) {
   });
 }
 
-test('extracts a Raycast 1.x export as JSON', t => {
-  const classic = { builtin_package_snippets: { snippets: [{ name: 'sig', text: 'Best' }] }, raycast_themes: [] };
-  const { input, out, read } = setup(t, encodeClassic(classic, { password: PASSWORD }));
+test('extracts a Raycast 1.x export as JSON and Markdown', t => {
+  const { input, out, read } = setup(t, encodeClassic(classicExport, { password: PASSWORD }));
+  const result = runCli([input, '-o', out], { env: PASSWORD_ENV });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+
+  assert.deepEqual(filesIn(out), ['ai-chats', 'floating-notes.md', 'json', 'notes', 'quicklinks.md', 'snippets.md']);
+  assert.deepEqual(filesIn(join(out, 'json')), Object.keys(classicExport).map(key => `${key}.json`).sort());
+  for (const [category, value] of Object.entries(classicExport)) assert.deepEqual(JSON.parse(read(`json/${category}.json`)), value);
+
+  // Notes: the rich text is base64 JSON; a note whose document cannot be read falls back to its plain text.
+  assert.deepEqual(filesIn(join(out, 'notes')), ['Groceries.md', 'Scratch.md']);
+  assert.equal(read('notes/Groceries.md'), ['---', 'id: N1', 'created: 2025-01-01T00:00:00Z', 'updated: 2025-01-02T00:00:00Z', '---', 'Buy **today**', '', '- [ ] Milk', ''].join('\n'));
+  assert.equal(read('notes/Scratch.md'), '---\nid: N2\ncreated: 2025-01-04T00:00:00Z\nupdated: 2025-01-04T00:00:00Z\n---\nPlain text only\n');
+  assert.equal(read('floating-notes.md'), 'call the bank\n');
+
+  // Chats: one file each, named by date and title, messages in chronological order, dates read as UTC.
+  assert.deepEqual(filesIn(join(out, 'ai-chats')), ['2025-02-03 sram vs dram.md', '2025-02-04 Named chat.md']);
+  assert.equal(read('ai-chats/2025-02-03 sram vs dram.md'), [
+    '# sram vs dram?', '',
+    '- **Chat ID:** C1', '- **Model:** model-x', '- **Created:** 2025-02-03 04:05:06 UTC', '- **Updated:** 2025-02-03 04:05:09 UTC', '',
+    '## User · 2025-02-03 04:05:06 UTC', '', 'sram vs dram?', 'briefly', '', '_Attachment: chip.png (image/png)_', '',
+    '## Assistant · model-x · 2025-02-03 04:05:09 UTC', '', 'Static RAM is faster.', '', '_(canceled)_', '',
+  ].join('\n'));
+  assert.match(read('ai-chats/2025-02-04 Named chat.md'), /^# Named chat\n\n- \*\*Chat ID:\*\* C2\n- \*\*Model:\*\* model-y\n- \*\*Created:\*\* 2025-02-04 00:00:00 UTC\n\n## User · 2025-02-04 00:00:00 UTC\n\nHello\n$/);
+
+  assert.equal(read('snippets.md'), '# Snippets\n\n## Email — `@@`\n\n```\nsam@example.com\n```\n\n_Used 4× · created 2025-01-01 00:00:00 UTC · updated 2025-01-05 00:00:00 UTC_\n');
+  assert.equal(read('quicklinks.md'), [
+    '# Quicklinks', '', '| Name | Link | Opens with | Opened | Updated |', '|---|---|---|---|---|',
+    '| Search | `https://example.com/?q={argument}` | com.example.Browser | 3 | 2025-01-01 00:00:00 UTC |',
+    '| Old (disabled) | `https://example.org` |  | 0 | 2025-01-02 00:00:00 UTC |', '',
+  ].join('\n'));
+
+  assert.match(result.stdout, /^Raycast 1\.x export -> /);
+  assert.match(result.stdout, /\n\s+7 {2}categories as JSON\s+json\/\n/);
+  assert.match(result.stdout, /\n\s+2 {2}notes\s+notes\/\n/);
+  assert.match(result.stdout, /\n\s+1 {2}floating note\s+floating-notes\.md\n/);
+  assert.match(result.stdout, /\n\s+2 {2}AI chats\s+ai-chats\/\n/);
+  assert.doesNotMatch(result.stdout, /JSON only/);
+});
+
+test('--only and --skip choose sections of a Raycast 1.x export', t => {
+  const { input, out } = setup(t, encodeClassic(classicExport));
+  assert.equal(runCli([input, '-o', out, '--only', 'notes']).status, 0);
+  assert.deepEqual(filesIn(out), ['floating-notes.md', 'notes']);
+  assert.equal(runCli([input, '-o', out, '--force', '--skip', 'json,notes,chats']).status, 0);
+  assert.deepEqual(filesIn(out), ['floating-notes.md', 'notes', 'quicklinks.md', 'snippets.md']);
+});
+
+test('a Raycast 1.x export with nothing to read as Markdown is written as JSON only', t => {
+  const empty = { builtin_package_raycastNotes: { notes: [] }, builtin_package_floatingNotes: { note: ' \n' }, 'builtin_package_open-ai': { aiChats: [] }, builtin_package_snippets: { snippets: [] }, raycast_themes: [] };
+  const { input, out, read } = setup(t, encodeClassic(empty, { password: PASSWORD }));
   const result = runCli([input, '-o', out], { env: PASSWORD_ENV });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(filesIn(out), ['json']);
-  assert.deepEqual(filesIn(join(out, 'json')), ['builtin_package_snippets.json', 'raycast_themes.json']);
-  assert.deepEqual(JSON.parse(read('json/builtin_package_snippets.json')), classic.builtin_package_snippets);
-  assert.match(result.stdout, /^Raycast 1\.x export -> /);
-  assert.match(result.stdout, /written as JSON only/);
+  assert.deepEqual(JSON.parse(read('json/raycast_themes.json')), []);
+  assert.match(result.stdout, /^Raycast 1\.x export -> .*\n\n\s+5 {2}categories as JSON\s+json\/\n\nThese files/);
 });
 
 test('a malformed category is reported but does not stop the rest', t => {
@@ -241,7 +288,7 @@ test('--help, --version and missing arguments', () => {
   const help = runCli(['--help']);
   assert.equal(help.status, 0);
   assert.match(help.stdout, /^Usage: raydump <export\.rayconfig> \[options\]/);
-  assert.match(help.stdout, /Sections: json, notes, chats, transcriptions, snippets, quicklinks, clipboard/);
+  assert.match(help.stdout, /\nSections: json, notes, chats, transcriptions, snippets, quicklinks, clipboard\n$/);
 
   const version = runCli(['--version']);
   assert.equal(version.status, 0);

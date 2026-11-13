@@ -125,6 +125,58 @@ export const sampleExport = {
   },
 };
 
+const classicDocument = content => Buffer.from(JSON.stringify({ type: 'doc', content })).toString('base64');
+
+/** A made-up Raycast 1.x export: the same kinds of data under other keys and field names. */
+export const classicExport = {
+  raycast_version: '1.100.0',
+  builtin_package_raycastNotes: {
+    provider_schemaVersion: 1,
+    notes: [
+      {
+        id: 'N1', title: 'Groceries', documentSchemaVersion: 2, text: 'Buy today\nMilk', createdAt: '2025-01-01T00:00:00Z', modifiedAt: '2025-01-02T00:00:00Z', openedAt: '2025-01-03T00:00:00Z',
+        document: classicDocument([
+          paragraph(text('Buy '), text('today', ['bold'])),
+          { type: 'list', attrs: { kind: 'task', order: null, checked: false }, content: [paragraph(text('Milk'))] },
+        ]),
+      },
+      { id: 'N2', title: 'Scratch', document: 'not a document', text: 'Plain text only', createdAt: '2025-01-04T00:00:00Z', modifiedAt: '2025-01-04T00:00:00Z' },
+    ],
+  },
+  builtin_package_floatingNotes: { provider_schemaVersion: 1, note: 'call the bank' },
+  'builtin_package_open-ai': {
+    provider_schemaVersion: 1,
+    aiChatPresets: [],
+    aiCommands: [],
+    aiChats: [
+      {
+        record: { id: 'C1', title: '', model: 'model-x', platform: 'macOS', createdAt: '2025-02-03 04:05:06.789', modifiedAt: '2025-02-03 04:05:09.000', accessedAt: '2025-02-03 04:05:09.000' },
+        // Deliberately out of order: the writer sorts by timestamp. The attachment fields are a guess;
+        // no real 1.x export with attachments was available, so the writer accepts the usual spellings.
+        messages: [
+          { id: 'M2', chatId: 'C1', source: 'assistant', modelUsed: 'model-x', text: 'Static RAM is faster.', timestamp: '2025-02-03 04:05:09.000', isCancelled: true, platform: 'macOS' },
+          { id: 'M1', chatId: 'C1', source: 'user', text: 'sram vs dram?\nbriefly', timestamp: '2025-02-03 04:05:06.789', isCancelled: false, attachments: [{ name: 'chip.png', type: 'image/png' }], platform: 'macOS' },
+        ],
+      },
+      { record: { id: 'C2', title: 'Named chat', model: 'model-y', createdAt: '2025-02-04 00:00:00.000' }, messages: [{ id: 'M3', chatId: 'C2', source: 'user', text: 'Hello', timestamp: '2025-02-04 00:00:00.000' }] },
+      { record: { id: 'EMPTY', title: 'No messages' }, messages: [] },
+    ],
+  },
+  builtin_package_snippets: {
+    provider_schemaVersion: 1,
+    snippets: [{ name: 'Email', alias: '@@', text: 'sam@example.com', category: 'text', copyCount: 4, createdAt: '2025-01-01T00:00:00Z', modifiedAt: '2025-01-05T00:00:00Z', accessedAt: '2025-01-06T00:00:00Z' }],
+  },
+  builtin_package_quicklinks: {
+    provider_schemaVersion: 1,
+    enableQuickSearch: false,
+    quicklinks: [
+      { uuid: 'Q1', name: 'Search', url: 'https://example.com/?q={argument}', openCount: 3, isEnabled: true, updatedAt: '2025-01-01T00:00:00Z', applicationID: 'com.example.Browser' },
+      { uuid: 'Q2', name: 'Old', url: 'https://example.org', openCount: 0, isEnabled: false, updatedAt: '2025-01-02T00:00:00Z' },
+    ],
+  },
+  builtin_package_clipboardHistory: { provider_schemaVersion: 1, clipboardHistoryEnableLinkPreview: true },
+};
+
 /** Creates a temporary directory that is removed when the test (or suite) ends. */
 export function tempDir(t) {
   const dir = mkdtempSync(join(tmpdir(), 'rayconfig-test-'));
