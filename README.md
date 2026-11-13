@@ -13,7 +13,6 @@
 
 <p align="center">
   <a aria-label="Latest release" href="https://github.com/bixvongoeler/raydump/releases/latest"><img alt="" src="https://img.shields.io/github/v/release/bixvongoeler/raydump?style=for-the-badge&color=black&logo=github"></a>
-  <a aria-label="Test status" href="https://github.com/bixvongoeler/raydump/actions/workflows/test.yml"><img alt="" src="https://img.shields.io/github/actions/workflow/status/bixvongoeler/raydump/test.yml?branch=main&style=for-the-badge&label=tests&labelColor=black"></a>
   <a aria-label="MIT license" href="LICENSE"><img alt="" src="https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge"></a>
 </p>
 
