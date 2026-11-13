@@ -1,6 +1,29 @@
-<img src=".github/assets/raydump-banner.png" alt="raydump: own your Raycast data" width="100%">
+<p align="center">
+  <a href="https://github.com/bixvongoeler/raydump">
+    <img width="1024" src=".github/assets/raydump-banner.png" alt="raydump: own your Raycast data">
+  </a>
+</p>
+<h1 align="center">
+  raydump
+</h1>
+<h3 align="center">
+  Built by <a href="https://github.com/bixvongoeler">Bix von Goeler</a>
+</h3>
+<p align="center">
+  Decrypt your Raycast export and get your notes, AI chats, snippets and more as Markdown and JSON.
+</p>
 
-# raydump
+<p align="center">
+  <a aria-label="Latest release" href="https://github.com/bixvongoeler/raydump/releases/latest">
+    <img alt="" src="https://img.shields.io/github/v/release/bixvongoeler/raydump?style=for-the-badge&color=black&logo=github">
+  </a>
+  <a aria-label="Test status" href="https://github.com/bixvongoeler/raydump/actions/workflows/test.yml">
+    <img alt="" src="https://img.shields.io/github/actions/workflow/status/bixvongoeler/raydump/test.yml?branch=main&style=for-the-badge&label=tests&labelColor=black">
+  </a>
+  <a aria-label="MIT license" href="LICENSE">
+    <img alt="" src="https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge">
+  </a>
+</p>
 
 Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
 
