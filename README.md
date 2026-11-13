@@ -26,15 +26,15 @@ To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, sav
 
 ## Quick start
 
-<img src=".github/assets/step-1-search.png" alt="Step 1: Search" width="70%">
+<p align="center"><img src=".github/assets/step-1-search.png" alt="Step 1: Search" width="70%"></p>
 
 1. Run the _"Export Settings & Data"_ command inside Raycast to save the `Raycast-X DATE.rayconfig` file.
 
-<img src=".github/assets/step-2-password.png" alt="Step 2: Password" width="70%">
+<p align="center"><img src=".github/assets/step-2-password.png" alt="Step 2: Password" width="70%"></p>
 
 2. Choose a password and save location for your export
 
-<img src=".github/assets/step-3-run.png" alt="Step 3: Run" width="70%">
+<p align="center"><img src=".github/assets/step-3-run.png" alt="Step 3: Run" width="70%"></p>
 
 3. Run `npx raydump` with the path to your `.rayconfig` file. You will be asked for the export password, and the result is written to a folder named after the export.
 
