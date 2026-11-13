@@ -5,10 +5,10 @@
   raydump
 </h1>
 <h4 align="center">
-  Built by <a href="https://github.com/bixvongoeler">bixvongoeler</a>
+  built by <a href="https://github.com/bixvongoeler">bixvongoeler</a>
 </h4>
 <p align="center">
-  Decrypt your Raycast export and get your notes, AI chats, snippets and more as Markdown and JSON.
+  decrypt your Raycast export and get your notes, ai chats, snippets and more as markdown or json
 </p>
 
 <p align="center">
