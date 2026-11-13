@@ -18,9 +18,9 @@
 
 ## About
 
-Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
+Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export — allowing you to use **your** personal data _however_ you wish!
 
-- `raydump` requires the export password you chose in raycast during export to decrypt the `.rayconfig` file.
+- `raydump` requires the export password you chose in Raycast during export to decrypt the `.rayconfig` file.
 - It runs entirely on your computer and makes no network requests.
 - It has no dependencies beyond Node.js.
 
@@ -36,7 +36,7 @@ To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, sav
 
 <p align="center"><img src=".github/assets/step-2-password.png" alt="Step 2: Password" width="70%"></p>
 
-2. Choose a password and save location for your export
+2. Choose a password and save location for your export.
 
 <p align="center"><img src=".github/assets/step-3-run.png" alt="Step 3: Run" width="70%"></p>
 
@@ -48,7 +48,7 @@ To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, sav
 
 ## Homebrew Install
 
-If you want to run regular exports, or don't already have node installed, get it with Homebrew:
+If you want to run regular exports, or don't already have Node.js installed, get it with Homebrew:
 
 ```sh
 brew install bixvongoeler/tap/raydump
@@ -63,7 +63,7 @@ npm install -g raydump
 
 ## Files Produced
 
-<img src=".github/assets/output-tree.png" alt="Output tree" width="70%">
+<p align="center"><img src=".github/assets/output-tree.png" alt="Output tree" width="70%"></p>
 
 - The `json/` folder contains the complete export: settings, extensions, window layouts, themes, usage history, etc.
 - The `markdown` files are generated from the `json` files to create human/agent readable views of key data categories.
@@ -106,17 +106,22 @@ The password is taken from the first of these that is set:
 
 Exports made without a password need none.
 
-## Supported exports
+## Supported Exports
+
+<div align="center">
 
 | Export from                  | Decrypts | JSON | Markdown |
-| ---------------------------- | -------- | ---- | -------- |
-| Raycast 2.x (current format) | yes      | yes  | yes      |
-| Raycast 2.x (earlier format) | yes      | yes  | yes      |
-| Raycast 1.x                  | yes      | yes  | yes      |
+| ---------------------------- | :------: | :--: | :------: |
+| Raycast 2.x (current format) |    ✓     |  ✓   |    ✓     |
+| Raycast 2.x (earlier format) |    ✓     |  ✓   |    ✓     |
+| Raycast 1.x                  |    ✓     |  ✓   |    ✓     |
+
+</div>
 
 ## Privacy
 
-The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
+> [!WARNING]
+> The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
 
 `--skip clipboard` leaves the clipboard history out of the Markdown, but `json/clipboardHistory.json` still contains it. To leave it out completely, name what you do want, for example `--only notes,chats,snippets,quicklinks`.
 
