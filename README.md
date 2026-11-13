@@ -1,28 +1,38 @@
 # raydump
 
-**Raycast Export Extractor.** Turn a Raycast export into files you can read.
+Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
 
-Raycast's **Export Settings & Data** command saves everything into one `.rayconfig` file that only Raycast can open. `raydump` decrypts that file with the password you chose and writes your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON.
+To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, save the `Raycast-X DATE.rayconfig` file, and then run `npx raydump "/path/to/your/Raycast-X DATE.rayconfig"` which will extract your data to a new folder containing your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON files.
 
-- It needs your export password. It does not bypass or weaken the encryption.
+- `raydump` requires the export password you chose in raycast during export to decrypt the `.rayconfig` file.
 - It runs entirely on your computer and makes no network requests.
 - It has no dependencies beyond Node.js.
 
 ## Quick start
 
-```sh
-npx raydump "Raycast 2026-11-12.rayconfig"
-```
+> ![Step 1: Search](.github/assets/step-1-search.png)
 
-You are asked for the export password, and the result is written to a folder named after the export. This needs [Node.js](https://nodejs.org) 20 or later.
+1. Run the _"Export Settings & Data"_ command inside Raycast to save the `Raycast-X DATE.rayconfig` file.
+
+> ![Step 2: Password](.github/assets/step-2-password.png)
+
+2. Choose a password and save location for your export
+
+> ![Step 3: Run](.github/assets/step-3-run.png)
+
+3. Run `npx raydump` with the path to your `.rayconfig` file. You will be asked for the export password, and the result is written to a folder named after the export.
+
+    ```sh
+    npx raydump "Raycast-X [DATE].rayconfig"
+    ```
 
 ## Install
 
-If you export regularly, install it with Homebrew:
+If you want to run regular exports, or don't already have node installed, get it with Homebrew:
 
 ```sh
 brew install bixvongoeler/tap/raydump
-raydump "Raycast 2026-11-12.rayconfig"
+raydump "Raycast-X [DATE].rayconfig"
 ```
 
 Or with npm:
@@ -31,28 +41,14 @@ Or with npm:
 npm install -g raydump
 ```
 
-## What you get
+## Resulting Files
 
-```
-Raycast 2026-11-12/
-├── notes/                 one Markdown file per note
-│   └── images/            images used in notes
-├── ai-chats/
-│   ├── chat/              one Markdown file per AI chat, named by date and title
-│   └── quick_ai/          Quick AI conversations
-├── snippets.md
-├── quicklinks.md
-├── transcriptions.md      dictation history
-├── clipboard.md           clipboard history, newest first
-├── clipboard-files/       images and PDFs from the clipboard history
-└── json/                  every category of the export as formatted JSON
-```
+![Output tree](.github/assets/output-tree.png)
 
-The `json/` folder is the complete export: settings, extensions, window layouts, themes, usage history and everything else, including the data behind the Markdown files. The Markdown files are a readable view of the parts people usually want to read.
+- The `json/` folder contains the complete export: settings, extensions, window layouts, themes, usage history, etc.
+- The `markdown` files are generated from the `json` files to create human/agent readable views of key data categories.
 
-AI chats include reasoning and tool calls in collapsible sections. Notes keep their headings, lists, checkboxes, code blocks, links and images.
-
-## Usage
+## Detailed Usage
 
 ```
 raydump <export.rayconfig> [options]
@@ -92,13 +88,11 @@ Exports made without a password need none.
 
 ## Supported exports
 
-| Export from | Decrypts | JSON | Markdown |
-|---|---|---|---|
-| Raycast 2.x (current format) | yes | yes | yes |
-| Raycast 2.x (earlier format) | yes | yes | yes |
-| Raycast 1.x | yes | yes | no |
-
-The current Raycast 2.x format is verified against real exports. The earlier 2.x format and the 1.x format are implemented from how Raycast imports them and are tested with generated files only. If one of yours does not work, please [open an issue](https://github.com/bixvongoeler/raydump/issues).
+| Export from                  | Decrypts | JSON | Markdown |
+| ---------------------------- | -------- | ---- | -------- |
+| Raycast 2.x (current format) | yes      | yes  | yes      |
+| Raycast 2.x (earlier format) | yes      | yes  | yes      |
+| Raycast 1.x                  | yes      | yes  | yes      |
 
 ## Privacy
 
@@ -108,31 +102,9 @@ The output is not encrypted. It can contain anything you have copied, dictated o
 
 ## Limitations
 
-- Raycast 1.x exports are written as JSON only.
+- Raycast 1.x exports contain no clipboard or dictation history, so there is no `clipboard.md` or `transcriptions.md` for them.
 - Most images and files in the clipboard history are not inside the export. Raycast stores them in its own data folder and the export only records their paths. `clipboard.md` lists those paths; the files are still on the computer that made the export.
 - The export format is not documented by Raycast and may change. `raydump` reports an unknown format instead of guessing.
-
-## How it works
-
-A current `.rayconfig` file is laid out like this:
-
-```
-"RAYCFG3\n" | header length (uint32, little-endian) | gzip(JSON header) | payload | 16-byte tag
-```
-
-The header holds the export date, app version and, for encrypted exports, a random salt and IV. The payload is gzipped JSON encrypted with AES-256-GCM. The key is derived from your password with scrypt (N=16384, r=8, p=1), and the trailing tag authenticates the data, so a wrong password or a damaged file is detected instead of producing garbage.
-
-The older formats are described at the top of [`src/container.js`](src/container.js).
-
-## Development
-
-```sh
-git clone https://github.com/bixvongoeler/raydump.git
-cd raydump
-npm test
-```
-
-There is nothing to install or build. The tests use generated exports only; never commit a real `.rayconfig` file or anything extracted from one.
 
 ## Disclaimer
 
