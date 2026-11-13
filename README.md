@@ -1,9 +1,9 @@
 <p align="center">
   <a href="https://github.com/bixvongoeler/raydump"><img width="1024" src=".github/assets/raydump-banner.png" alt="raydump: own your Raycast data"></a>
 </p>
-<h1 align="center">
+<!--<h1 align="center">
   raydump
-</h1>
+</h1>-->
 <p align="center">
   decrypt your Raycast export and get your notes, ai chats, snippets and more as markdown or json
 </p>
