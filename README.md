@@ -24,6 +24,10 @@ Raycast only offers export through an _"Export Settings & Data"_ command resulti
 - It runs entirely on your computer and makes no network requests.
 - It has no dependencies beyond Node.js.
 
+<p align="center">
+  <a href="https://github.com/bixvongoeler/raydump"><img width="1024" src=".github/assets/flow.png" alt="raydump flow"></a>
+</p>
+
 ## Quick Start
 
 To use `raydump`, run the _"Export Settings & Data"_ command inside Raycast, save the `Raycast-X DATE.rayconfig` file, and then run `npx raydump "/path/to/your/Raycast-X DATE.rayconfig"` which will extract your data to a new folder containing your notes, AI chats, snippets, quicklinks, clipboard history and settings as Markdown and JSON files.
@@ -120,8 +124,7 @@ Exports made without a password need none.
 
 ## Privacy
 
-> [!WARNING]
-> The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
+> [!WARNING] The output is not encrypted. It can contain anything you have copied, dictated or typed into Raycast, including passwords and tokens in your clipboard history. Keep the folder somewhere private, and out of shared or synced locations unless you intend that.
 
 `--skip clipboard` leaves the clipboard history out of the Markdown, but `json/clipboardHistory.json` still contains it. To leave it out completely, name what you do want, for example `--only notes,chats,snippets,quicklinks`.
 
