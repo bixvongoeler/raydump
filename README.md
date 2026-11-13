@@ -1,3 +1,5 @@
+<img src=".github/assets/raydump-banner.png" alt="raydump: own your Raycast data" width="100%">
+
 # raydump
 
 Raycast only offers export through an _"Export Settings & Data"_ command resulting in an encrypted proprietary `.rayconfig` file. `raydump` is a small tool that allows you to extract your personal data to the raw Markdown and JSON files hidden within the export -- allowing you to use **your** personal data _however_ you wish!
