@@ -4,13 +4,16 @@
 <!--<h1 align="center">
   raydump
 </h1>-->
-<p align="center">
-  decrypt your Raycast export and get your notes, ai chats, snippets and more as markdown or json
-</p>
 
 <p align="center">
   <a aria-label="Latest release" href="https://github.com/bixvongoeler/raydump/releases/latest"><img alt="" src="https://img.shields.io/github/v/release/bixvongoeler/raydump?style=for-the-badge&color=black&logo=github"></a>
   <a aria-label="MIT license" href="LICENSE"><img alt="" src="https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge"></a>
+</p>
+
+---
+
+<p align="center">
+  decrypt your Raycast export and get your notes, ai chats, snippets and more as markdown or json
 </p>
 
 ## About
